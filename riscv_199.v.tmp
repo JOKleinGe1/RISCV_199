@@ -1,0 +1,200 @@
+module riscv_199(
+    input clk,
+    input reset
+);
+
+// =========================
+// MEMOIRES & REGISTRES
+// =========================
+reg [31:0] PC;
+reg [31:0] registers [0:31];
+reg [31:0] imem [0:255];
+reg [31:0] dmem [0:255];
+
+// =========================
+// FETCH
+// =========================
+wire [31:0] instruction = imem[PC[9:2]];
+
+// Champs
+wire [4:0] rs1 = instruction[19:15];
+wire [4:0] rs2 = instruction[24:20];
+wire [4:0] rd  = instruction[11:7];
+wire [2:0] funct3 = instruction[14:12];
+wire [6:0] opcode = instruction[6:0];
+
+// =========================
+// DECODE
+// =========================
+wire [31:0] read_data1 = registers[rs1];
+wire [31:0] read_data2 = registers[rs2];
+
+// =========================
+// IMMEDIATES
+// =========================
+wire [31:0] imm_i = {{20{instruction[31]}}, instruction[31:20]};
+
+wire [31:0] imm_s = {{20{instruction[31]}},
+                     instruction[31:25],
+                     instruction[11:7]};
+
+wire [31:0] imm_b = {{19{instruction[31]}},
+                     instruction[31],
+                     instruction[7],
+                     instruction[30:25],
+                     instruction[11:8],
+                     1'b0};
+
+wire [31:0] imm =
+    (opcode == 7'b1100011) ? imm_b :
+    (opcode == 7'b0100011) ? imm_s :
+                             imm_i;
+
+// =========================
+// CONTROLE
+// =========================
+wire reg_write = (opcode == 7'b0110011) || 
+                 (opcode == 7'b0010011) ||
+                 (opcode == 7'b0000011); // LW
+
+wire alu_src = (opcode == 7'b0010011) ||
+               (opcode == 7'b0000011) || // LW
+               (opcode == 7'b0100011);   // SW
+
+wire branch    = (opcode == 7'b1100011);
+wire mem_read  = (opcode == 7'b0000011);
+wire mem_write = (opcode == 7'b0100011);
+wire mem_to_reg= (opcode == 7'b0000011);
+
+// =========================
+// ALU CONTROL
+// =========================
+reg [3:0] alu_ctrl;
+
+always @(*) begin
+    case (opcode)
+
+        7'b0110011: begin // R-type
+            case (funct3)
+                3'b000: alu_ctrl = 4'b0000; // ADD
+                3'b111: alu_ctrl = 4'b0001; // AND
+                3'b110: alu_ctrl = 4'b0010; // OR
+                3'b100: alu_ctrl = 4'b0011; // XOR
+                default: alu_ctrl = 4'b0000;
+            endcase
+        end
+
+        7'b0010011: begin // I-type
+            case (funct3)
+                3'b000: alu_ctrl = 4'b0000; // ADDI
+                3'b100: alu_ctrl = 4'b0011; // XORI
+                default: alu_ctrl = 4'b0000;
+            endcase
+        end
+
+        7'b0000011, // LW
+        7'b0100011: // SW
+            alu_ctrl = 4'b0000; // ADD (adresse)
+
+        default: alu_ctrl = 4'b0000;
+    endcase
+end
+
+// =========================
+// EXECUTE
+// =========================
+wire [31:0] alu_in2 = (alu_src) ? imm : read_data2;
+
+reg [31:0] alu_result;
+
+always @(*) begin
+    case (alu_ctrl)
+        4'b0000: alu_result = read_data1 + alu_in2;
+        4'b0001: alu_result = read_data1 & alu_in2;
+        4'b0010: alu_result = read_data1 | alu_in2;
+        4'b0011: alu_result = read_data1 ^ alu_in2;
+        default: alu_result = 0;
+    endcase
+end
+
+// =========================
+// MEMORY
+// =========================
+wire [31:0] mem_data;
+
+assign mem_data = (mem_read) ? dmem[alu_result[9:2]] : 32'b0;
+
+always @(posedge clk) begin
+    if (mem_write)
+        dmem[alu_result[9:2]] <= read_data2;
+end
+
+// =========================
+// WRITE BACK
+// =========================
+wire [31:0] write_back = (mem_to_reg) ? mem_data : alu_result;
+
+always @(posedge clk) begin
+    if (reg_write && rd != 0)
+        registers[rd] <= write_back;
+end
+
+// =========================
+// BRANCH
+// =========================
+wire zero = (read_data1 == read_data2);
+
+// =========================
+// PC UPDATE
+// =========================
+always @(posedge clk or posedge reset) begin
+    if (reset)
+        PC <= 0;
+    else begin
+        if (branch && zero)
+            PC <= PC + imm;
+        else
+            PC <= PC + 4;
+    end
+end
+
+// =========================
+// PROGRAMME DEMO (boucle + mémoire)
+// =========================
+integer i;
+
+initial begin
+    // Reset registres
+    for (i = 0; i < 32; i = i + 1)
+        registers[i] = 0;
+
+    // =========================================
+    // Programme :
+    // x1 = 0        (compteur)
+    // x2 = 5        (limite)
+    // x3 = 0        (adresse mémoire)
+    //
+    // boucle:
+    //   x1 = x1 + 1
+    //   MEM[x3] = x1
+    //   x4 = MEM[x3]
+    //   si x1 == x2 → fin
+    //   sinon → boucle
+    // =========================================
+
+    imem[0] = 32'h00000093; // ADDI x1, x0, 0
+    imem[1] = 32'h00500113; // ADDI x2, x0, 5
+    imem[2] = 32'h00000193; // ADDI x3, x0, 0
+    
+    imem[3] = 32'h00108093; // ADDI x1, x1, 1
+    imem[4] = 32'h0010a023; // SW x1, 0(x1)
+    imem[5] = 32'h0000a203; // LW x4, 0(x1)
+
+    imem[6] = 32'h004282b3; // add x5, x5, x4
+    imem[7] = 32'h00208463; // BEQ x1, x2, +8
+    imem[8] = 32'hfe0006e3; // beq x0, x0, loop
+
+    imem[9] = 32'h00000013; // NOP 
+end
+
+endmodule
