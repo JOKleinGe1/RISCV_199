@@ -31,10 +31,10 @@ initial begin
     $dumpfile("wave.vcd");
     $dumpvars(0, tb_riscv);
 
-    for (i = 0; i < 5; i = i + 1) begin
+    for (i = 0; i < 6; i = i + 1) begin
       $dumpvars(0, dut.dmem[i]);
     end
-    for (i = 0; i < 5; i = i + 1) begin
+    for (i = 0; i < 6; i = i + 1) begin
       $dumpvars(0, dut.registers[i]);
     end
     
@@ -57,7 +57,7 @@ initial begin
     // Affichage mémoire
     // =========================
     $display("==== MEMORY ====");
-    for (i = 0; i < 4; i = i + 1) begin
+    for (i = 0; i < 8; i = i + 1) begin
         $display("MEM[%0d] = %0d", i, dut.dmem[i]);
     end
 
@@ -66,8 +66,9 @@ initial begin
     // =========================
     if (dut.registers[1] == 5 &&   // x1
         dut.registers[2] == 5 &&   // x2
+        dut.registers[3] == 20 &&   // x3
         dut.registers[4] == 5 &&   // x4 (load)
-        dut.dmem[0] == 5)          // mémoire
+        dut.dmem[5] == 5)          // mémoire
     begin
         $display("✅ TEST PASSED");
     end

@@ -1,7 +1,4 @@
-module riscv_199(
-    input clk,
-    input reset
-);
+module riscv_199( input clk, input reset );
 
 // =========================
 // MEMOIRES & REGISTRES
@@ -173,28 +170,30 @@ initial begin
     // x1 = 0        (compteur)
     // x2 = 5        (limite)
     // x3 = 0        (adresse mémoire)
+    // x5 = 0        (somme)
     //
     // boucle:
     //   x1 = x1 + 1
+    //   x3 = x3 + 4
     //   MEM[x3] = x1
     //   x4 = MEM[x3]
+    //   x5 = x5 + x1
     //   si x1 == x2 → fin
     //   sinon → boucle
     // =========================================
 
-    imem[0] = 32'h00000093; // ADDI x1, x0, 0
-    imem[1] = 32'h00500113; // ADDI x2, x0, 5
-    imem[2] = 32'h00000193; // ADDI x3, x0, 0
-    
-    imem[3] = 32'h00108093; // ADDI x1, x1, 1
-    imem[4] = 32'h00418093; // SW x1, 0(x1)
-    imem[5] = 32'h0011a023; // SW x1, 0(x1)
-    imem[6] = 32'h0001a203; // LW x4, 0(x1)
-    imem[7] = 32'h004282b3; // add x5, x5, x4
-    imem[8] = 32'h00208463; // BEQ x1, x2, +8
-    imem[9] = 32'hfe0004e3; // beq x0, x0, loop
-
-    imem[10] = 32'h00000013; // NOP 
+    imem[0] = 32'h00000093; //addi x1, x0, 0
+    imem[1] = 32'h00500113; // addi x2, x0, 5
+    imem[2] = 32'h00000193; // addi x3, x0, 0
+    imem[3] = 32'h00000293; // addi x3, x0, 0
+    imem[4] = 32'h00108093; // addi x1, x1, 1
+    imem[5] = 32'h00418193; // addi x3, x3, 4
+    imem[6] = 32'h0011a023; // sw x1, 0(x3)
+    imem[7] = 32'h0001a203; // lw x4, 0(x3)
+    imem[8] = 32'h004282b3; // add x5, x5, x4
+    imem[9] = 32'h00208463; // beq x1, x2, end
+    imem[10] = 32'hfe0004e3; //beq x
+    imem[11] = 32'h00000013; //addi x0, x0, 0 (nop)
 end
 
 endmodule
