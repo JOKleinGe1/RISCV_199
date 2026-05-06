@@ -1,6 +1,6 @@
-.section text
-.global _start
-_start:
+.section 	text
+.global 	_start
+_start: 
   addi x1, x0, 0
   addi x2, x0, 5
   addi x3, x0, 0

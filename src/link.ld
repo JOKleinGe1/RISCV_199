@@ -16,6 +16,7 @@ SECTIONS
     {
 	*(.text._start)
         *(.text)
+        *(.text.*)
 	_etext =  . ;
     } > ram
 
@@ -23,6 +24,7 @@ SECTIONS
     {	
 	_srodata = . ;
         *(.rodata)
+        *(.rodata.*)
 	_erodata = . ;
     } > ram
 
@@ -30,6 +32,7 @@ SECTIONS
     {
 	_sdata = . ;
         *(.data)
+        *(.data*)
 	_edata = . ;
     } > ram
 
@@ -39,4 +42,14 @@ SECTIONS
       *(.bss)
   	_ebss = . ;
     } > ram
+    
+/DISCARD/ : {
+    *(.eh_frame)
+    *(.comment)
+    *(.note*)
+    *(.riscv.attributes)
+    *(.gnu.build.attributes)
+    *(.debug*)
+  }
+
 }

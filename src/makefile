@@ -4,8 +4,9 @@ AS      = $(CROSS_COMPILE)gcc
 OBJCOPY = $(CROSS_COMPILE)objcopy
 OBJDUMP = $(CROSS_COMPILE)objdump
 
-CFLAGS  = -march=rv32i -mabi=ilp32 -ffreestanding -fno-common 
-LDFLAGS = -T link.ld -nostdlib -nostartfiles
+ CFLAGS  = -march=rv32i -mabi=ilp32 -ffreestanding -fno-common 
+ LDFLAGS = -T link.ld -nostdlib -O2 -nostartfiles 
+ LDLIBS  = -lgcc
 
 SRCS_C  = 
 SRCS_S  = progasm.s
@@ -13,16 +14,17 @@ OBJS    = $(SRCS_S:.S=.o) $(SRCS_C:.c=.o)
 
 ELF     = test.elf
 DUMP    = test.dump
+MAP     = test.map
 
-GENERATED =  $(ELF) $(BIN) $(DUMP)
+GENERATED =  $(ELF) $(DUMP) $(MAP)
 
 .PHONY: all clean 
 
-all: $(BIN) $(DUMP) $(MEM) $(MIF) 
+all:  $(DUMP)   
 
 $(ELF): $(SRCS_C) $(SRCS_S)
 	@echo "1️⃣  Compilation 2️⃣  Edition de lien (linker) .s .c -> .elf"
-	$(CC) $(CFLAGS) $(LDFLAGS) -Wl,-Map=$(MAP) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -Wl,-Map=$(MAP) -o $@ $^ $(LDLIBS)
 
 $(DUMP): $(ELF)
 	@echo "3️⃣ -B  Déassemblage de l'exécutable .elf -> .dump"
